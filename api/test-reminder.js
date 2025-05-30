@@ -1,4 +1,4 @@
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   // Headers CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST');
@@ -91,4 +91,4 @@ Rendez-vous sur votre Moodcast pour dire comment vous vous sentez. 💙`;
       details: error.message 
     });
   }
-}; 
+} 

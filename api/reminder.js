@@ -1,6 +1,6 @@
-const { createClient } = require('@supabase/supabase-js');
+import { createClient } from '@supabase/supabase-js';
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   // Vérifier que c'est bien un appel cron de Vercel
   if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ error: 'Unauthorized' });
@@ -122,4 +122,4 @@ N'oubliez pas de partager comment vous vous sentez aujourd'hui. 💙`;
       details: error.message 
     });
   }
-}; 
+} 
