@@ -117,7 +117,9 @@ moodcast_couple/
 │   └── config.js            # API serverless pour Pushover
 ├── frontend/
 │   └── public/
-│       └── index.html       # Application complète
+│       └── index.html       # Application complète (source)
+├── index.html              # Application déployée (root pour Vercel)
+├── package.json            # Configuration Node.js pour Vercel
 ├── .env.example            # Template des variables d'environnement
 ├── .gitignore              # Fichiers à ignorer (inclut .env)
 ├── vercel.json             # Configuration Vercel
