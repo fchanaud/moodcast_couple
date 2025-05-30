@@ -2,14 +2,27 @@
   "version": 2,
   "builds": [
     {
+      "src": "api/config.js",
+      "use": "@vercel/node"
+    },
+    {
       "src": "frontend/public/**",
       "use": "@vercel/static"
     }
   ],
   "routes": [
     {
+      "src": "/api/config",
+      "dest": "api/config.js"
+    },
+    {
       "src": "/(.*)",
       "dest": "frontend/public/index.html"
     }
-  ]
+  ],
+  "env": {
+    "PUSHOVER_API_TOKEN": "@pushover_api_token",
+    "CLEMENCE_USER_KEY": "@clemence_user_key",
+    "FRANKLIN_USER_KEY": "@franklin_user_key"
+  }
 }
