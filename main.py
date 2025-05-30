@@ -38,6 +38,15 @@ class MoodsResponse(BaseModel):
 # Storage - use JSON file as fallback
 MOODS_FILE = "/tmp/moods.json"
 
+def clear_temp_storage():
+    """Clear temporary JSON storage to force Supabase usage"""
+    try:
+        if os.path.exists(MOODS_FILE):
+            os.remove(MOODS_FILE)
+            print("Cleared temporary JSON storage")
+    except:
+        pass
+
 def load_moods():
     """Load moods from JSON file"""
     try:
@@ -57,17 +66,32 @@ def save_moods(moods):
     except:
         return False
 
-# Supabase client (optional)
+# Supabase client (with better error handling)
 def get_supabase():
     """Get Supabase client if configured"""
     try:
         url = os.getenv("SUPABASE_URL")
         key = os.getenv("SUPABASE_ANON_KEY")
+        
+        print(f"Supabase URL configured: {bool(url)}")
+        print(f"Supabase Key configured: {bool(key)}")
+        
         if url and key:
             from supabase import create_client
-            return create_client(url, key)
-    except:
-        pass
+            client = create_client(url, key)
+            
+            # Test the connection by making a simple query
+            try:
+                test_result = client.table("moods").select("id").limit(1).execute()
+                print("Supabase connection test successful")
+                return client
+            except Exception as e:
+                print(f"Supabase connection test failed: {e}")
+                return None
+                
+    except Exception as e:
+        print(f"Supabase setup error: {e}")
+    
     return None
 
 # Weather mappings
@@ -89,6 +113,7 @@ def send_pushover_notification(user: str, weather: str) -> bool:
         user_key = os.getenv("PUSHOVER_USER_KEY")
         
         if not api_token or not user_key:
+            print("Pushover not configured")
             return False
             
         user_name = "Clémence" if user == "clemence" else "Franklin"
@@ -104,6 +129,7 @@ def send_pushover_notification(user: str, weather: str) -> bool:
             "device": device
         })
         
+        print(f"Pushover notification sent: {response.status_code == 200}")
         return response.status_code == 200
     except Exception as e:
         print(f"Pushover error: {e}")
@@ -132,19 +158,20 @@ async def save_mood(mood_data: MoodCreate):
         # Get today's date
         today = datetime.now().strftime("%Y-%m-%d")
         
-        # Try Supabase first, fallback to JSON
+        # Try Supabase first
         supabase = get_supabase()
         
         if supabase:
-            # Use Supabase
+            print("Using Supabase for save-mood")
             try:
-                # Check if user already posted today
+                # Check if user already posted today in Supabase
                 existing = supabase.table("moods").select("*").eq("user", mood_data.user).eq("date", today).execute()
                 
                 if existing.data:
+                    print(f"User {mood_data.user} already posted today in Supabase")
                     raise HTTPException(status_code=400, detail="Mood already shared today")
                 
-                # Insert new mood
+                # Insert new mood into Supabase
                 new_mood = {
                     "user": mood_data.user,
                     "weather": mood_data.weather,
@@ -158,19 +185,23 @@ async def save_mood(mood_data: MoodCreate):
                     raise Exception("Failed to save to Supabase")
                 
                 saved_mood = result.data[0]
+                print(f"Mood saved to Supabase successfully")
                 
+            except HTTPException:
+                raise
             except Exception as e:
-                # Fallback to JSON if Supabase fails
-                print(f"Supabase error, using JSON fallback: {e}")
-                supabase = None
+                print(f"Supabase save error: {e}")
+                raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
         
-        if not supabase:
-            # Use JSON file storage
+        else:
+            print("Using JSON fallback for save-mood")
+            # Use JSON file storage as fallback
             moods = load_moods()
             
-            # Check if user already posted today
+            # Check if user already posted today in JSON
             existing = [m for m in moods if m.get("user") == mood_data.user and m.get("date") == today]
             if existing:
+                print(f"User {mood_data.user} already posted today in JSON")
                 raise HTTPException(status_code=400, detail="Mood already shared today")
             
             # Create new mood
@@ -184,6 +215,7 @@ async def save_mood(mood_data: MoodCreate):
             
             moods.append(saved_mood)
             save_moods(moods)
+            print(f"Mood saved to JSON successfully")
         
         # Send notification
         notification_sent = send_pushover_notification(mood_data.user, mood_data.weather)
@@ -197,29 +229,34 @@ async def save_mood(mood_data: MoodCreate):
     except HTTPException:
         raise
     except Exception as e:
+        print(f"Save mood error: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.get("/api/get-moods", response_model=MoodsResponse)
 async def get_moods():
     """Get recent moods"""
     try:
-        # Try Supabase first, fallback to JSON
+        # Try Supabase first
         supabase = get_supabase()
         
         if supabase:
+            print("Using Supabase for get-moods")
             try:
                 result = supabase.table("moods").select("*").order("created_at", desc=True).limit(10).execute()
                 moods = result.data or []
+                print(f"Retrieved {len(moods)} moods from Supabase")
             except Exception as e:
-                print(f"Supabase error, using JSON fallback: {e}")
+                print(f"Supabase get error: {e}")
                 supabase = None
         
         if not supabase:
+            print("Using JSON fallback for get-moods")
             # Use JSON file storage
             moods = load_moods()
             # Sort by created_at descending and limit to 10
             moods.sort(key=lambda x: x.get("created_at", ""), reverse=True)
             moods = moods[:10]
+            print(f"Retrieved {len(moods)} moods from JSON")
         
         return MoodsResponse(
             success=True,
@@ -227,6 +264,7 @@ async def get_moods():
         )
         
     except Exception as e:
+        print(f"Get moods error: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.post("/api/reminder")
@@ -243,7 +281,7 @@ async def send_reminder(request: Request):
         # Check for moods in last 3 days
         three_days_ago = (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%d")
         
-        # Try Supabase first, fallback to JSON
+        # Try Supabase first
         supabase = get_supabase()
         recent_moods = []
         
@@ -252,7 +290,7 @@ async def send_reminder(request: Request):
                 result = supabase.table("moods").select("*").gte("date", three_days_ago).execute()
                 recent_moods = result.data or []
             except Exception as e:
-                print(f"Supabase error, using JSON fallback: {e}")
+                print(f"Supabase error in reminder: {e}")
                 supabase = None
         
         if not supabase:
@@ -375,6 +413,21 @@ async def test_reminder():
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.get("/api/debug")
+async def debug_info():
+    """Debug endpoint to check configuration"""
+    return {
+        "supabase_url_configured": bool(os.getenv("SUPABASE_URL")),
+        "supabase_key_configured": bool(os.getenv("SUPABASE_ANON_KEY")),
+        "pushover_token_configured": bool(os.getenv("PUSHOVER_API_TOKEN")),
+        "pushover_user_configured": bool(os.getenv("PUSHOVER_USER_KEY")),
+        "cron_secret_configured": bool(os.getenv("CRON_SECRET")),
+        "supabase_connection": bool(get_supabase())
+    }
+
+# Clear temporary storage on startup
+clear_temp_storage()
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000) 
