@@ -183,10 +183,7 @@
     // Configuration Pushover (sera chargée depuis l'API)
     let PUSHOVER_CONFIG = {
       apiToken: '',
-      users: {
-        clemence: '',
-        franklin: ''
-      }
+      userKey: '' // Un seul compte Pushover partagé
     };
 
     // Charger la configuration Pushover
@@ -196,8 +193,7 @@
         if (response.ok) {
           const config = await response.json();
           PUSHOVER_CONFIG.apiToken = config.pushoverApiToken;
-          PUSHOVER_CONFIG.users.clemence = config.clemenceUserKey;
-          PUSHOVER_CONFIG.users.franklin = config.franklinUserKey;
+          PUSHOVER_CONFIG.userKey = config.pushoverUserKey;
         }
       } catch (error) {
         console.log('Configuration Pushover non disponible:', error);
@@ -307,7 +303,7 @@
     async function sendPushoverNotification(targetUser, weather) {
       try {
         const otherUser = targetUser === 'clemence' ? 'franklin' : 'clemence';
-        const userKey = PUSHOVER_CONFIG.users[otherUser];
+        const userKey = PUSHOVER_CONFIG.userKey;
         
         if (!PUSHOVER_CONFIG.apiToken || !userKey) {
           console.log('Configuration Pushover incomplète');

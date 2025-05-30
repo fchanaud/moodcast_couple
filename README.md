@@ -33,8 +33,7 @@ Application web mobile-first pour Clémence et Franklin pour partager leur mét�
 2. **Remplir vos vraies clés dans `.env`**
    ```bash
    PUSHOVER_API_TOKEN=votre_vrai_token_ici
-   CLEMENCE_USER_KEY=cle_user_clemence_ici  
-   FRANKLIN_USER_KEY=cle_user_franklin_ici
+   PUSHOVER_USER_KEY=votre_cle_user_partagee_ici
    ```
 
 ⚠️ **IMPORTANT** : Le fichier `.env` ne doit JAMAIS être commité sur GitHub !
@@ -43,7 +42,7 @@ Application web mobile-first pour Clémence et Franklin pour partager leur mét�
 
 1. Créez un compte sur [Pushover](https://pushover.net/)
 2. Créez une application pour obtenir votre **API Token**
-3. Notez les **User Keys** de Clémence et Franklin
+3. Notez votre **User Key** (Clémence et Franklin partagent le même compte)
 4. Configurez les appareils dans Pushover :
    - Appareil de Clémence : `iphone`
    - Appareil de Franklin : `iphoneF`
@@ -58,8 +57,7 @@ Application web mobile-first pour Clémence et Franklin pour partager leur mét�
 
    Dans les paramètres Vercel, ajoutez :
    - `PUSHOVER_API_TOKEN` : Votre token d'application Pushover
-   - `CLEMENCE_USER_KEY` : La clé utilisateur de Clémence
-   - `FRANKLIN_USER_KEY` : La clé utilisateur de Franklin
+   - `PUSHOVER_USER_KEY` : Votre clé utilisateur partagée
 
 3. **Déployer**
    

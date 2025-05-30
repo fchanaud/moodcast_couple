@@ -1,15 +1,14 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "api/config.js",
-      "use": "@vercel/node"
+  "functions": {
+    "api/config.js": {
+      "runtime": "@vercel/node@18"
     }
-  ],
+  },
   "routes": [
     {
-      "src": "/api/config",
-      "dest": "/api/config.js"
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
     },
     {
       "src": "/(.*)",
