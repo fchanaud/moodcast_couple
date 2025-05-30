@@ -1,0 +1,17 @@
+{
+  "name": "moodcast-couple",
+  "version": "1.0.0",
+  "description": "Application web mobile-first pour partager sa météo intérieure quotidienne",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'Static files ready'",
+    "start": "vercel --prod"
+  },
+  "keywords": ["moodcast", "vercel", "pushover", "weather", "mood"],
+  "author": "Franklin & Clémence",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+} 
