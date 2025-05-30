@@ -1,4 +1,4 @@
-export default function handler(req, res) {
+module.exports = (req, res) => {
   // Définir les headers CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
@@ -20,4 +20,4 @@ export default function handler(req, res) {
     pushoverApiToken: process.env.PUSHOVER_API_TOKEN || '',
     pushoverUserKey: process.env.PUSHOVER_USER_KEY || ''
   });
-} 
+}; 
