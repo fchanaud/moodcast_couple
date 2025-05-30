@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Moodcast - Partage ton humeur</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .weather-icon {
+      font-size: 4rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      user-select: none;
+    }
+    .weather-icon:hover {
+      transform: scale(1.1);
+    }
+    .weather-icon.selected {
+      transform: scale(1.2);
+      filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.8));
+    }
+    .weather-icon.disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+    .weather-icon.disabled:hover {
+      transform: none;
+    }
+  </style>
+</head>
+<body class="text-white">
+  <div class="min-h-screen flex flex-col justify-center items-center p-4">
+    <div class="w-full max-w-sm">
+      
+      <!-- Header -->
+      <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold mb-2">Moodcast</h1>
+        <p class="text-lg opacity-90">Comment te sens-tu aujourd'hui ?</p>
+      </div>
+
+      <!-- User Selection -->
+      <div class="mb-8 text-center">
+        <div class="inline-flex bg-white/20 rounded-full p-1">
+          <button 
+            onclick="selectUser('user1')" 
+            id="user1Btn"
+            class="px-4 py-2 rounded-full transition user-btn bg-white text-gray-800"
+          >
+            Toi
+          </button>
+          <button 
+            onclick="selectUser('user2')" 
+            id="user2Btn"
+            class="px-4 py-2 rounded-full transition user-btn"
+          >
+            Partenaire
+          </button>
+        </div>
+      </div>
+
+      <!-- Status Message -->
+      <div id="statusMessage" class="text-center mb-6 min-h-[2rem]"></div>
+
+      <!-- Weather Icons -->
+      <div id="weatherSelection" class="grid grid-cols-2 gap-6 mb-8">
+        <div class="text-center">
+          <div 
+            class="weather-icon" 
+            data-weather="very_sunny"
+            onclick="selectWeather('very_sunny')"
+          >🌞</div>
+          <p class="mt-2 text-sm opacity-80">Très ensoleillé</p>
+        </div>
+        <div class="text-center">
+          <div 
+            class="weather-icon" 
+            data-weather="sunny"
+            onclick="selectWeather('sunny')"
+          >☀️</div>
+          <p class="mt-2 text-sm opacity-80">Ensoleillé</p>
+        </div>
+        <div class="text-center">
+          <div 
+            class="weather-icon" 
+            data-weather="cloudy"
+            onclick="selectWeather('cloudy')"
+          >☁️</div>
+          <p class="mt-2 text-sm opacity-80">Nuageux</p>
+        </div>
+        <div class="text-center">
+          <div 
+            class="weather-icon" 
+            data-weather="rainy"
+            onclick="selectWeather('rainy')"
+          >🌧️</div>
+          <p class="mt-2 text-sm opacity-80">Pluvieux</p>
+        </div>
+      </div>
+
+      <!-- Submit Button -->
+      <button 
+        id="submitBtn"
+        onclick="submitMood()"
+        class="w-full bg-white text-gray-800 py-3 rounded-full font-semibold text-lg transition hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled
+      >
+        Partager mon humeur
+      </button>
+
+      <!-- Error Message -->
+      <div id="errorMessage" class="text-center mt-4 text-red-300 hidden"></div>
+      
+      <!-- Success Message -->
+      <div id="successMessage" class="text-center mt-4 text-green-300 hidden"></div>
+
+      <!-- Recent Moods -->
+      <div class="mt-8">
+        <h3 class="text-lg font-semibold mb-4 text-center opacity-90">Humeurs récentes</h3>
+        <div id="recentMoods" class="space-y-2"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    let currentUser = 'user1';
+    let selectedWeather = null;
+    let userHasMoodToday = false;
+
+    // Obtenir la date d'aujourd'hui au format YYYY-MM-DD
+    function getTodayDate() {
+      return new Date().toISOString().split('T')[0];
+    }
+
+    // Obtenir les humeurs depuis le localStorage
+    function getMoods() {
+      const moods = localStorage.getItem('moodcast_moods');
+      return moods ? JSON.parse(moods) : [];
+    }
+
+    // Sauvegarder les humeurs dans le localStorage
+    function saveMoods(moods) {
+      localStorage.setItem('moodcast_moods', JSON.stringify(moods));
+    }
+
+    // Sélection d'utilisateur
+    function selectUser(user) {
+      currentUser = user;
+      
+      // Mise à jour des boutons
+      document.querySelectorAll('.user-btn').forEach(btn => {
+        btn.classList.remove('bg-white', 'text-gray-800');
+        btn.classList.add('text-white');
+      });
+      
+      document.getElementById(user + 'Btn').classList.add('bg-white', 'text-gray-800');
+      document.getElementById(user + 'Btn').classList.remove('text-white');
+      
+      // Vérifier si l'utilisateur a déjà posté aujourd'hui
+      checkUserMoodToday();
+    }
+
+    // Vérifier si l'utilisateur a déjà posté aujourd'hui
+    function checkUserMoodToday() {
+      const today = getTodayDate();
+      const moods = getMoods();
+      const todayMood = moods.find(mood => mood.user === currentUser && mood.date === today);
+      
+      userHasMoodToday = !!todayMood;
+      updateUI();
+      
+      if (userHasMoodToday) {
+        document.getElementById('statusMessage').innerHTML = 
+          `<span class="text-green-300">✅ Humeur déjà partagée aujourd'hui : ${getWeatherEmoji(todayMood.weather)}</span>`;
+      } else {
+        document.getElementById('statusMessage').innerHTML = '';
+      }
+    }
+
+    // Mise à jour de l'interface selon l'état
+    function updateUI() {
+      const weatherIcons = document.querySelectorAll('.weather-icon');
+      const submitBtn = document.getElementById('submitBtn');
+      
+      if (userHasMoodToday) {
+        // Désactiver toutes les icônes
+        weatherIcons.forEach(icon => {
+          icon.classList.add('disabled');
+          icon.classList.remove('selected');
+        });
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Déjà partagé aujourd\'hui';
+      } else {
+        // Réactiver les icônes
+        weatherIcons.forEach(icon => {
+          icon.classList.remove('disabled');
+        });
+        submitBtn.disabled = !selectedWeather;
+        submitBtn.textContent = 'Partager mon humeur';
+      }
+      
+      updateRecentMoods();
+    }
+
+    // Sélection de météo
+    function selectWeather(weather) {
+      if (userHasMoodToday) return;
+      
+      selectedWeather = weather;
+      
+      // Mise à jour visuelle
+      document.querySelectorAll('.weather-icon').forEach(icon => {
+        icon.classList.remove('selected');
+      });
+      
+      document.querySelector(`[data-weather="${weather}"]`).classList.add('selected');
+      
+      // Activer le bouton
+      document.getElementById('submitBtn').disabled = false;
+    }
+
+    // Soumettre l'humeur
+    function submitMood() {
+      if (!selectedWeather || userHasMoodToday) return;
+      
+      const submitBtn = document.getElementById('submitBtn');
+      const errorEl = document.getElementById('errorMessage');
+      const successEl = document.getElementById('successMessage');
+      
+      // Reset messages
+      errorEl.classList.add('hidden');
+      successEl.classList.add('hidden');
+      
+      // Désactiver le bouton
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Envoi en cours...';
+      
+      try {
+        const today = getTodayDate();
+        const moods = getMoods();
+        
+        // Vérifier une dernière fois
+        if (moods.find(mood => mood.user === currentUser && mood.date === today)) {
+          throw new Error('Humeur déjà partagée aujourd\'hui');
+        }
+        
+        // Ajouter la nouvelle humeur
+        const newMood = {
+          id: Date.now().toString(),
+          user: currentUser,
+          weather: selectedWeather,
+          date: today,
+          timestamp: new Date().toISOString()
+        };
+        
+        moods.push(newMood);
+        saveMoods(moods);
+        
+        // Succès
+        successEl.textContent = `Humeur ${getWeatherEmoji(selectedWeather)} partagée avec succès !`;
+        successEl.classList.remove('hidden');
+        
+        // Mettre à jour l'état
+        userHasMoodToday = true;
+        selectedWeather = null;
+        updateUI();
+        
+        // Simulation d'une notification (en réalité, les notifications Pushover nécessiteraient un backend)
+        setTimeout(() => {
+          alert(`📱 Notification envoyée à votre partenaire : "Votre partenaire se sent ${getWeatherEmoji(newMood.weather)} aujourd'hui !"`);
+        }, 1000);
+        
+      } catch (error) {
+        console.error('Erreur lors de l\'envoi:', error);
+        errorEl.textContent = error.message || 'Erreur lors de l\'envoi. Réessayez.';
+        errorEl.classList.remove('hidden');
+        
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Partager mon humeur';
+      }
+    }
+
+    // Mettre à jour l'affichage des humeurs récentes
+    function updateRecentMoods() {
+      const moods = getMoods();
+      const recentMoods = moods
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        .slice(0, 5);
+      
+      const container = document.getElementById('recentMoods');
+      
+      if (recentMoods.length === 0) {
+        container.innerHTML = '<p class="text-center text-sm opacity-60">Aucune humeur partagée</p>';
+        return;
+      }
+      
+      container.innerHTML = recentMoods.map(mood => {
+        const date = new Date(mood.timestamp);
+        const formattedDate = date.toLocaleDateString('fr-FR', {
+          day: '2-digit',
+          month: '2-digit'
+        });
+        const userLabel = mood.user === 'user1' ? 'Toi' : 'Partenaire';
+        
+        return `
+          <div class="flex justify-between items-center bg-white/10 rounded-lg p-2">
+            <span class="text-sm">${userLabel} - ${formattedDate}</span>
+            <span class="text-lg">${getWeatherEmoji(mood.weather)}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Obtenir l'emoji de la météo
+    function getWeatherEmoji(weather) {
+      const emojis = {
+        'very_sunny': '🌞',
+        'sunny': '☀️',
+        'cloudy': '☁️',
+        'rainy': '🌧️'
+      };
+      return emojis[weather] || '🌤️';
+    }
+
+    // Initialisation
+    document.addEventListener('DOMContentLoaded', function() {
+      checkUserMoodToday();
+    });
+  </script>
+</body>
+</html> 

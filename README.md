@@ -1,99 +1,64 @@
 # Moodcast Couple
 
-Application web pour partager votre météo intérieure quotidienne avec votre partenaire.
+Application web mobile-first pour partager votre humeur quotidienne avec votre partenaire.
 
 ## Fonctionnalités
 
-- Formulaire pour partager votre état émotionnel sous forme de météo
-- Notifications via Pushover quand votre partenaire partage sa météo
-- Rappels quotidiens à midi
-- Historique des entrées
+- Interface mobile responsive avec sélection par icônes météo
+- Une seule humeur par utilisateur par jour
+- Stockage local dans le navigateur (localStorage)
+- Historique des humeurs récentes
+- 4 types d'humeur : Très ensoleillé 🌞, Ensoleillé ☀️, Nuageux ☁️, Pluvieux 🌧️
+
+## Technologies
+
+- **Frontend** : HTML5/CSS3/JavaScript avec TailwindCSS
+- **Stockage** : localStorage du navigateur
+- **Déploiement** : Vercel (site statique)
 
 ## Prérequis
 
-- Python 3.7+
-- Node.js et npm (pour le développement frontend)
-- Compte Supabase (base de données PostgreSQL)
-- Compte Pushover (pour les notifications)
+Aucun ! L'application fonctionne entièrement côté client.
 
-## Configuration
+## Utilisation locale
 
-1. **Cloner le dépôt**
+Ouvrez simplement le fichier `frontend/public/index.html` dans votre navigateur.
 
-```bash
-git clone https://github.com/votrenom/moodcast_couple.git
-cd moodcast_couple
-```
+## Déploiement sur Vercel
 
-2. **Configuration du backend**
+1. **Préparer le déploiement**
 
-```bash
-# Créer un environnement virtuel
-python -m venv venv
-source venv/bin/activate  # Sur Windows: venv\Scripts\activate
+- Pushez votre code sur GitHub
+- Connectez votre dépôt à Vercel
 
-# Installer les dépendances
-pip install -r requirements.txt
-```
+2. **Déployer**
 
-3. **Configuration de Supabase**
+Vercel détectera automatiquement la configuration via `vercel.json` et servira l'application comme un site statique.
 
-- Créez un compte sur [Supabase](https://supabase.io/)
-- Créez un nouveau projet
-- Exécutez le script SQL dans `backend/sql/init.sql` dans l'éditeur SQL de Supabase
+## Utilisation
 
-4. **Configuration des variables d'environnement**
+1. Sélectionnez votre profil (Toi/Partenaire)
+2. Cliquez sur l'icône qui représente votre humeur du jour
+3. Cliquez sur "Partager mon humeur"
+4. Votre humeur est sauvegardée localement
+5. L'historique des humeurs récentes s'affiche en bas
 
-Copiez le fichier `.env.example` en `.env` et remplissez les valeurs :
+**Note** : 
+- Vous ne pouvez partager qu'une seule humeur par jour
+- Les données sont stockées localement dans votre navigateur
+- Pour partager réellement avec votre partenaire, vous devez utiliser le même appareil ou synchroniser manuellement
 
-```bash
-cp .env.example .env
-```
-
-Remplissez le fichier `.env` avec vos informations :
+## Structure du projet
 
 ```
-SUPABASE_URL=votre_url_supabase
-SUPABASE_KEY=votre_clé_supabase
-PUSHOVER_API_TOKEN=votre_token_pushover
-PUSHOVER_USER_1=clé_utilisateur_1
-PUSHOVER_USER_2=clé_utilisateur_2
+moodcast_couple/
+├── frontend/
+│   └── public/
+│       └── index.html    # Application complète
+├── vercel.json          # Configuration de déploiement
+└── README.md
 ```
-
-5. **Configuration du frontend (optional)**
-
-Si vous avez npm installé :
-
-```bash
-cd frontend
-npm install
-```
-
-## Lancement de l'application
-
-1. **Démarrer le backend**
-
-```bash
-cd backend
-uvicorn main:app --reload
-```
-
-2. **Démarrer le frontend (si vous avez npm)**
-
-```bash
-cd frontend
-npm run dev
-```
-
-Ou ouvrez simplement le fichier `frontend/index.html` dans votre navigateur si vous ne pouvez pas exécuter npm.
-
-## Déploiement sur Render
-
-L'application est compatible avec Render pour le déploiement :
-
-1. Backend : Service Web avec build command `pip install -r requirements.txt` et start command `uvicorn main:app --host 0.0.0.0 --port $PORT`
-2. Frontend : Site statique
 
 ## Licence
 
-MIT # moodcast_couple
+MIT
