@@ -5,8 +5,9 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import os
 import requests
+import json
 from datetime import datetime, timedelta
-from supabase import create_client, Client
+from typing import Optional
 import uvicorn
 
 app = FastAPI(title="Moodcast API", description="API for sharing daily moods")
@@ -34,13 +35,40 @@ class MoodsResponse(BaseModel):
     success: bool
     moods: list
 
-# Supabase client
-def get_supabase() -> Client:
-    url = os.getenv("SUPABASE_URL")
-    key = os.getenv("SUPABASE_ANON_KEY")
-    if not url or not key:
-        raise HTTPException(status_code=500, detail="Supabase configuration missing")
-    return create_client(url, key)
+# Storage - use JSON file as fallback
+MOODS_FILE = "/tmp/moods.json"
+
+def load_moods():
+    """Load moods from JSON file"""
+    try:
+        if os.path.exists(MOODS_FILE):
+            with open(MOODS_FILE, 'r') as f:
+                return json.load(f)
+    except:
+        pass
+    return []
+
+def save_moods(moods):
+    """Save moods to JSON file"""
+    try:
+        with open(MOODS_FILE, 'w') as f:
+            json.dump(moods, f)
+        return True
+    except:
+        return False
+
+# Supabase client (optional)
+def get_supabase():
+    """Get Supabase client if configured"""
+    try:
+        url = os.getenv("SUPABASE_URL")
+        key = os.getenv("SUPABASE_ANON_KEY")
+        if url and key:
+            from supabase import create_client
+            return create_client(url, key)
+    except:
+        pass
+    return None
 
 # Weather mappings
 WEATHER_EMOJIS = {
@@ -91,7 +119,7 @@ async def read_root():
         raise HTTPException(status_code=404, detail="Page not found")
 
 @app.post("/api/save-mood", response_model=MoodResponse)
-async def save_mood(mood_data: MoodCreate, supabase: Client = Depends(get_supabase)):
+async def save_mood(mood_data: MoodCreate):
     """Save a new mood and send notification"""
     try:
         # Validate input
@@ -104,31 +132,65 @@ async def save_mood(mood_data: MoodCreate, supabase: Client = Depends(get_supaba
         # Get today's date
         today = datetime.now().strftime("%Y-%m-%d")
         
-        # Check if user already posted today
-        existing = supabase.table("moods").select("*").eq("user", mood_data.user).eq("date", today).execute()
+        # Try Supabase first, fallback to JSON
+        supabase = get_supabase()
         
-        if existing.data:
-            raise HTTPException(status_code=400, detail="Mood already shared today")
+        if supabase:
+            # Use Supabase
+            try:
+                # Check if user already posted today
+                existing = supabase.table("moods").select("*").eq("user", mood_data.user).eq("date", today).execute()
+                
+                if existing.data:
+                    raise HTTPException(status_code=400, detail="Mood already shared today")
+                
+                # Insert new mood
+                new_mood = {
+                    "user": mood_data.user,
+                    "weather": mood_data.weather,
+                    "date": today,
+                    "created_at": datetime.now().isoformat()
+                }
+                
+                result = supabase.table("moods").insert(new_mood).execute()
+                
+                if not result.data:
+                    raise Exception("Failed to save to Supabase")
+                
+                saved_mood = result.data[0]
+                
+            except Exception as e:
+                # Fallback to JSON if Supabase fails
+                print(f"Supabase error, using JSON fallback: {e}")
+                supabase = None
         
-        # Insert new mood
-        new_mood = {
-            "user": mood_data.user,
-            "weather": mood_data.weather,
-            "date": today,
-            "created_at": datetime.now().isoformat()
-        }
-        
-        result = supabase.table("moods").insert(new_mood).execute()
-        
-        if not result.data:
-            raise HTTPException(status_code=500, detail="Failed to save mood")
+        if not supabase:
+            # Use JSON file storage
+            moods = load_moods()
+            
+            # Check if user already posted today
+            existing = [m for m in moods if m.get("user") == mood_data.user and m.get("date") == today]
+            if existing:
+                raise HTTPException(status_code=400, detail="Mood already shared today")
+            
+            # Create new mood
+            saved_mood = {
+                "id": len(moods) + 1,
+                "user": mood_data.user,
+                "weather": mood_data.weather,
+                "date": today,
+                "created_at": datetime.now().isoformat()
+            }
+            
+            moods.append(saved_mood)
+            save_moods(moods)
         
         # Send notification
         notification_sent = send_pushover_notification(mood_data.user, mood_data.weather)
         
         return MoodResponse(
             success=True,
-            mood=result.data[0],
+            mood=saved_mood,
             notificationSent=notification_sent
         )
         
@@ -138,21 +200,37 @@ async def save_mood(mood_data: MoodCreate, supabase: Client = Depends(get_supaba
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.get("/api/get-moods", response_model=MoodsResponse)
-async def get_moods(supabase: Client = Depends(get_supabase)):
+async def get_moods():
     """Get recent moods"""
     try:
-        result = supabase.table("moods").select("*").order("created_at", desc=True).limit(10).execute()
+        # Try Supabase first, fallback to JSON
+        supabase = get_supabase()
+        
+        if supabase:
+            try:
+                result = supabase.table("moods").select("*").order("created_at", desc=True).limit(10).execute()
+                moods = result.data or []
+            except Exception as e:
+                print(f"Supabase error, using JSON fallback: {e}")
+                supabase = None
+        
+        if not supabase:
+            # Use JSON file storage
+            moods = load_moods()
+            # Sort by created_at descending and limit to 10
+            moods.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+            moods = moods[:10]
         
         return MoodsResponse(
             success=True,
-            moods=result.data or []
+            moods=moods
         )
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.post("/api/reminder")
-async def send_reminder(request: Request, supabase: Client = Depends(get_supabase)):
+async def send_reminder(request: Request):
     """Send reminder if no mood shared in 3+ days (cron endpoint)"""
     try:
         # Check authorization for cron job
@@ -165,13 +243,28 @@ async def send_reminder(request: Request, supabase: Client = Depends(get_supabas
         # Check for moods in last 3 days
         three_days_ago = (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%d")
         
-        recent_moods = supabase.table("moods").select("*").gte("date", three_days_ago).execute()
+        # Try Supabase first, fallback to JSON
+        supabase = get_supabase()
+        recent_moods = []
         
-        if recent_moods.data:
+        if supabase:
+            try:
+                result = supabase.table("moods").select("*").gte("date", three_days_ago).execute()
+                recent_moods = result.data or []
+            except Exception as e:
+                print(f"Supabase error, using JSON fallback: {e}")
+                supabase = None
+        
+        if not supabase:
+            # Use JSON file storage
+            moods = load_moods()
+            recent_moods = [m for m in moods if m.get("date", "") >= three_days_ago]
+        
+        if recent_moods:
             return {
                 "message": "No reminder needed",
                 "reason": "Recent moods found",
-                "count": len(recent_moods.data)
+                "count": len(recent_moods)
             }
         
         # Send reminders
