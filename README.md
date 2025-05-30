@@ -23,6 +23,22 @@ Application web mobile-first pour Clémence et Franklin pour partager leur mét�
 
 ## Configuration
 
+### ⚠️ Configuration locale (développement)
+
+1. **Copier le fichier d'environnement**
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Remplir vos vraies clés dans `.env`**
+   ```bash
+   PUSHOVER_API_TOKEN=votre_vrai_token_ici
+   CLEMENCE_USER_KEY=cle_user_clemence_ici  
+   FRANKLIN_USER_KEY=cle_user_franklin_ici
+   ```
+
+⚠️ **IMPORTANT** : Le fichier `.env` ne doit JAMAIS être commité sur GitHub !
+
 ### Prérequis Pushover
 
 1. Créez un compte sur [Pushover](https://pushover.net/)
@@ -35,10 +51,10 @@ Application web mobile-first pour Clémence et Franklin pour partager leur mét�
 ### Déploiement sur Vercel
 
 1. **Préparer le déploiement**
-   - Pushez votre code sur GitHub
+   - Pushez votre code sur GitHub (le `.env` sera automatiquement ignoré)
    - Connectez votre dépôt à Vercel
 
-2. **Configurer les variables d'environnement**
+2. **Configurer les variables d'environnement dans Vercel**
 
    Dans les paramètres Vercel, ajoutez :
    - `PUSHOVER_API_TOKEN` : Votre token d'application Pushover
@@ -51,8 +67,9 @@ Application web mobile-first pour Clémence et Franklin pour partager leur mét�
 
 ## Utilisation locale
 
-1. Ouvrez `frontend/public/index.html` dans votre navigateur
-2. Les notifications Pushover ne fonctionneront qu'en production avec les vraies clés
+1. Configurez votre fichier `.env` (voir section Configuration)
+2. Ouvrez `frontend/public/index.html` dans votre navigateur
+3. Les notifications Pushover fonctionneront avec vos vraies clés
 
 ## Utilisation
 
@@ -89,6 +106,7 @@ Format du message : "**[Prénom]** a une météo **[emoji] [description]** aujou
 - **Une seule météo par jour** : Impossible de changer une fois partagée
 - **Stockage local** : Les données restent dans votre navigateur
 - **Notifications ciblées** : Chaque utilisateur reçoit les notifications sur son appareil spécifique
+- **Sécurité** : Les clés API ne sont jamais exposées dans le code source
 - **Responsive** : Optimisé pour mobile et desktop
 
 ## Structure du projet
@@ -100,9 +118,18 @@ moodcast_couple/
 ├── frontend/
 │   └── public/
 │       └── index.html       # Application complète
+├── .env.example            # Template des variables d'environnement
+├── .gitignore              # Fichiers à ignorer (inclut .env)
 ├── vercel.json             # Configuration Vercel
 └── README.md
 ```
+
+## Sécurité
+
+- ✅ `.env` est automatiquement ignoré par git
+- ✅ `.env.example` fourni comme template
+- ✅ Variables d'environnement séparées pour production/développement
+- ✅ Aucune clé API exposée dans le code source
 
 ## Licence
 
