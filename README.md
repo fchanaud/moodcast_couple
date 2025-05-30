@@ -10,8 +10,10 @@ Application web mobile-first pour Clémence et Franklin pour partager leur mét�
 - Notifications Pushover avec appareils spécifiques :
   - Clémence → Notification vers iphoneF (Franklin)
   - Franklin → Notification vers iphone (Clémence)
+- **Rappels quotidiens automatiques** à 17h00 (heure UK) sur les deux appareils
 - Stockage local dans le navigateur (localStorage)
 - Historique des météos récentes
+- Bouton de test pour vérifier les rappels
 
 ## Technologies
 
@@ -58,6 +60,7 @@ Application web mobile-first pour Clémence et Franklin pour partager leur mét�
    Dans les paramètres Vercel, ajoutez :
    - `PUSHOVER_API_TOKEN` : Votre token d'application Pushover
    - `PUSHOVER_USER_KEY` : Votre clé utilisateur partagée
+   - `CRON_SECRET` : Une clé secrète pour sécuriser les tâches cron (générez une chaîne aléatoire)
 
 3. **Déployer**
    
@@ -98,6 +101,19 @@ Le système envoie automatiquement des notifications vers l'appareil spécifique
 - **Quand Franklin partage** → Notification envoyée vers l'appareil `iphone` de Clémence
 
 Format du message : "**[Prénom]** a une météo **[emoji] [description]** aujourd'hui !"
+
+## Rappels quotidiens
+
+Le système envoie automatiquement des rappels à **17h00 (heure UK)** tous les jours si aucune météo n'a été partagée :
+
+- **Heure** : 17h00 UK Time (18h00 en été, 17h00 en hiver en France)
+- **Destinataires** : Les deux appareils (iphone et iphoneF) reçoivent le rappel
+- **Message** : Rappel amical pour encourager le partage de la météo intérieure
+- **Fréquence** : Tous les jours à la même heure
+
+### Test des rappels
+
+Un bouton "🧪 Tester les rappels" est disponible dans l'application pour vérifier que le système fonctionne correctement.
 
 ## Notes importantes
 

@@ -172,6 +172,17 @@
         <div id="recentMoods" class="space-y-2"></div>
       </div>
 
+      <!-- Test Reminder Button (for testing) -->
+      <div class="mt-6 text-center">
+        <button 
+          id="testReminderBtn"
+          onclick="testReminder()"
+          class="px-4 py-2 bg-white/20 text-white rounded-lg text-sm hover:bg-white/30 transition"
+        >
+          🧪 Tester les rappels
+        </button>
+      </div>
+
     </div>
   </div>
 
@@ -461,6 +472,43 @@
         'foggy': 'brumeuse'
       };
       return names[weather] || 'variable';
+    }
+
+    // Tester les rappels quotidiens
+    async function testReminder() {
+      const btn = document.getElementById('testReminderBtn');
+      const originalText = btn.textContent;
+      
+      btn.disabled = true;
+      btn.textContent = '⏳ Test en cours...';
+      
+      try {
+        const response = await fetch('/api/test-reminder', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+          btn.textContent = `✅ Test réussi (${result.sent}/${result.total})`;
+          setTimeout(() => {
+            btn.textContent = originalText;
+            btn.disabled = false;
+          }, 3000);
+        } else {
+          throw new Error(result.error || 'Erreur lors du test');
+        }
+      } catch (error) {
+        console.error('Erreur test rappel:', error);
+        btn.textContent = '❌ Erreur test';
+        setTimeout(() => {
+          btn.textContent = originalText;
+          btn.disabled = false;
+        }, 3000);
+      }
     }
 
     // Initialisation
