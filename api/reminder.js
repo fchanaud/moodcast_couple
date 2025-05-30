@@ -1,3 +1,5 @@
+const { createClient } = require('@supabase/supabase-js');
+
 module.exports = async (req, res) => {
   // Vérifier que c'est bien un appel cron de Vercel
   if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -5,6 +7,12 @@ module.exports = async (req, res) => {
   }
 
   try {
+    // Configuration Supabase
+    const supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY
+    );
+
     // Configuration Pushover
     const PUSHOVER_API_TOKEN = process.env.PUSHOVER_API_TOKEN;
     const PUSHOVER_USER_KEY = process.env.PUSHOVER_USER_KEY;
@@ -14,18 +22,36 @@ module.exports = async (req, res) => {
       return res.status(500).json({ error: 'Configuration Pushover manquante' });
     }
 
-    // Obtenir la date d'aujourd'hui (UK timezone)
-    const today = new Date().toLocaleDateString('en-CA', { 
-      timeZone: 'Europe/London' 
-    }); // Format YYYY-MM-DD
+    // Obtenir la date d'il y a 3 jours
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    const threeDaysAgoStr = threeDaysAgo.toISOString().split('T')[0];
 
-    // Note: En production, nous ne pouvons pas accéder au localStorage des utilisateurs
-    // Cette fonction enverra toujours le rappel car nous ne pouvons pas vérifier
-    // si les humeurs ont été partagées (localStorage est côté client)
+    // Vérifier s'il y a eu des humeurs dans les 3 derniers jours
+    const { data: recentMoods, error } = await supabase
+      .from('moods')
+      .select('*')
+      .gte('date', threeDaysAgoStr);
+
+    if (error) {
+      console.error('Erreur Supabase:', error);
+      return res.status(500).json({ error: 'Database error' });
+    }
+
+    // Si des humeurs ont été partagées dans les 3 derniers jours, ne pas envoyer de rappel
+    if (recentMoods && recentMoods.length > 0) {
+      return res.status(200).json({
+        message: 'Pas de rappel nécessaire',
+        reason: 'Humeurs récentes trouvées',
+        recentMoodsCount: recentMoods.length,
+        lastMoodDate: recentMoods[0]?.date
+      });
+    }
+
+    // Envoyer rappel uniquement si aucune humeur dans les 3 derniers jours
+    const reminderMessage = `🌤️ Cela fait plus de 3 jours sans nouvelles de vos météos intérieures ! 
     
-    const reminderMessage = `🌤️ N'oubliez pas de partager votre météo intérieure aujourd'hui ! 
-    
-Rendez-vous sur votre Moodcast pour dire comment vous vous sentez. 💙`;
+N'oubliez pas de partager comment vous vous sentez aujourd'hui. 💙`;
 
     // Envoyer notification aux deux appareils
     const notifications = [
@@ -52,10 +78,10 @@ Rendez-vous sur votre Moodcast pour dire comment vous vous sentez. 💙`;
             token: PUSHOVER_API_TOKEN,
             user: PUSHOVER_USER_KEY,
             message: reminderMessage,
-            title: `Moodcast - Rappel pour ${notification.user}`,
+            title: `Moodcast - Rappel de météo (3+ jours)`,
             device: notification.device,
-            priority: 0, // Priorité normale
-            sound: 'pushover' // Son par défaut
+            priority: 1, // Priorité haute pour rappel important
+            sound: 'pushover'
           })
         });
 
@@ -79,15 +105,14 @@ Rendez-vous sur votre Moodcast pour dire comment vous vous sentez. 💙`;
       }
     }
 
-    // Retourner le résumé
     const successCount = results.filter(r => r.success).length;
     
     return res.status(200).json({
-      message: `Rappels quotidiens envoyés`,
-      date: today,
+      message: `Rappels envoyés (3+ jours sans humeur)`,
       sent: successCount,
       total: notifications.length,
-      results: results
+      results: results,
+      lastMoodDate: null
     });
 
   } catch (error) {

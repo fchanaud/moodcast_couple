@@ -191,40 +191,23 @@
     let selectedWeather = null;
     let userHasMoodToday = false;
 
-    // Configuration Pushover (sera chargée depuis l'API)
-    let PUSHOVER_CONFIG = {
-      apiToken: '',
-      userKey: '' // Un seul compte Pushover partagé
-    };
-
-    // Charger la configuration Pushover
-    async function loadPushoverConfig() {
-      try {
-        const response = await fetch('/api/config');
-        if (response.ok) {
-          const config = await response.json();
-          PUSHOVER_CONFIG.apiToken = config.pushoverApiToken;
-          PUSHOVER_CONFIG.userKey = config.pushoverUserKey;
-        }
-      } catch (error) {
-        console.log('Configuration Pushover non disponible:', error);
-      }
-    }
-
     // Obtenir la date d'aujourd'hui au format YYYY-MM-DD
     function getTodayDate() {
       return new Date().toISOString().split('T')[0];
     }
 
-    // Obtenir les humeurs depuis le localStorage
-    function getMoods() {
-      const moods = localStorage.getItem('moodcast_moods');
-      return moods ? JSON.parse(moods) : [];
-    }
-
-    // Sauvegarder les humeurs dans le localStorage
-    function saveMoods(moods) {
-      localStorage.setItem('moodcast_moods', JSON.stringify(moods));
+    // Obtenir les humeurs depuis l'API Supabase
+    async function getMoods() {
+      try {
+        const response = await fetch('/api/get-moods');
+        if (response.ok) {
+          const result = await response.json();
+          return result.moods || [];
+        }
+      } catch (error) {
+        console.error('Erreur lors de la récupération des humeurs:', error);
+      }
+      return [];
     }
 
     // Sélection d'utilisateur
@@ -252,9 +235,9 @@
     }
 
     // Vérifier si l'utilisateur a déjà posté aujourd'hui
-    function checkUserMoodToday() {
+    async function checkUserMoodToday() {
       const today = getTodayDate();
-      const moods = getMoods();
+      const moods = await getMoods();
       const todayMood = moods.find(mood => mood.user === currentUser && mood.date === today);
       
       userHasMoodToday = !!todayMood;
@@ -310,44 +293,6 @@
       document.getElementById('submitBtn').disabled = false;
     }
 
-    // Envoyer notification Pushover
-    async function sendPushoverNotification(targetUser, weather) {
-      try {
-        const userKey = PUSHOVER_CONFIG.userKey;
-        
-        if (!PUSHOVER_CONFIG.apiToken || !userKey) {
-          console.log('Configuration Pushover incomplète');
-          return false;
-        }
-
-        const userName = targetUser === 'clemence' ? 'Clémence' : 'Franklin';
-        const message = `${userName} a une météo ${getWeatherEmoji(weather)} ${getWeatherName(weather)} aujourd'hui !`;
-        
-        // CORRECTION: Quand Clémence partage → envoyer à iphoneF (Franklin)
-        // Quand Franklin partage → envoyer à iphone (Clémence)
-        const device = targetUser === 'clemence' ? 'iphoneF' : 'iphone';
-        
-        const response = await fetch('https://api.pushover.net/1/messages.json', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: new URLSearchParams({
-            token: PUSHOVER_CONFIG.apiToken,
-            user: userKey,
-            message: message,
-            title: 'Moodcast - Nouvelle météo',
-            device: device
-          })
-        });
-
-        return response.ok;
-      } catch (error) {
-        console.error('Erreur Pushover:', error);
-        return false;
-      }
-    }
-
     // Soumettre l'humeur
     async function submitMood() {
       if (!selectedWeather || userHasMoodToday) return;
@@ -365,42 +310,36 @@
       submitBtn.textContent = 'Envoi en cours...';
       
       try {
-        const today = getTodayDate();
-        const moods = getMoods();
-        
-        // Vérifier une dernière fois
-        if (moods.find(mood => mood.user === currentUser && mood.date === today)) {
-          throw new Error('Météo déjà partagée aujourd\'hui');
+        const response = await fetch('/api/save-mood', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            user: currentUser,
+            weather: selectedWeather
+          })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          // Succès
+          successEl.textContent = `Météo ${getWeatherEmoji(selectedWeather)} partagée avec succès !`;
+          if (result.notificationSent) {
+            const targetName = currentUser === 'clemence' ? 'Franklin' : 'Clémence';
+            const device = currentUser === 'clemence' ? 'iphoneF' : 'iphone';
+            successEl.textContent += ` 📱 Notification envoyée à ${targetName} (${device}) !`;
+          }
+          successEl.classList.remove('hidden');
+          
+          // Mettre à jour l'état
+          userHasMoodToday = true;
+          selectedWeather = null;
+          updateUI();
+        } else {
+          throw new Error(result.error || 'Erreur lors de l\'envoi');
         }
-        
-        // Ajouter la nouvelle humeur
-        const newMood = {
-          id: Date.now().toString(),
-          user: currentUser,
-          weather: selectedWeather,
-          date: today,
-          timestamp: new Date().toISOString()
-        };
-        
-        moods.push(newMood);
-        saveMoods(moods);
-        
-        // Envoyer notification Pushover
-        const notificationSent = await sendPushoverNotification(currentUser, selectedWeather);
-        
-        // Succès
-        successEl.textContent = `Météo ${getWeatherEmoji(selectedWeather)} partagée avec succès !`;
-        if (notificationSent) {
-          const device = currentUser === 'clemence' ? 'iphoneF' : 'iphone';
-          const targetName = currentUser === 'clemence' ? 'Franklin' : 'Clémence';
-          successEl.textContent += ` 📱 Notification envoyée à ${targetName} (${device}) !`;
-        }
-        successEl.classList.remove('hidden');
-        
-        // Mettre à jour l'état
-        userHasMoodToday = true;
-        selectedWeather = null;
-        updateUI();
         
       } catch (error) {
         console.error('Erreur lors de l\'envoi:', error);
@@ -413,11 +352,9 @@
     }
 
     // Mettre à jour l'affichage des humeurs récentes
-    function updateRecentMoods() {
-      const moods = getMoods();
-      const recentMoods = moods
-        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-        .slice(0, 5);
+    async function updateRecentMoods() {
+      const moods = await getMoods();
+      const recentMoods = moods.slice(0, 5);
       
       const container = document.getElementById('recentMoods');
       
@@ -427,7 +364,7 @@
       }
       
       container.innerHTML = recentMoods.map(mood => {
-        const date = new Date(mood.timestamp);
+        const date = new Date(mood.created_at);
         const formattedDate = date.toLocaleDateString('fr-FR', {
           day: '2-digit',
           month: '2-digit'
@@ -514,11 +451,8 @@
 
     // Initialisation
     document.addEventListener('DOMContentLoaded', async function() {
-      // Charger la configuration Pushover
-      await loadPushoverConfig();
-      
       // Vérifier l'humeur du jour
-      checkUserMoodToday();
+      await checkUserMoodToday();
     });
   </script>
 </body>
