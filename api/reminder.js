@@ -1,12 +1,13 @@
-import { createClient } from '@supabase/supabase-js';
-
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
   // Vérifier que c'est bien un appel cron de Vercel
   if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
   try {
+    // Dynamic import for Supabase
+    const { createClient } = await import('@supabase/supabase-js');
+    
     // Configuration Supabase
     const supabase = createClient(
       process.env.SUPABASE_URL,
@@ -35,7 +36,7 @@ export default async function handler(req, res) {
 
     if (error) {
       console.error('Erreur Supabase:', error);
-      return res.status(500).json({ error: 'Database error' });
+      return res.status(500).json({ error: 'Database error', details: error.message });
     }
 
     // Si des humeurs ont été partagées dans les 3 derniers jours, ne pas envoyer de rappel
@@ -122,4 +123,4 @@ N'oubliez pas de partager comment vous vous sentez aujourd'hui. 💙`;
       details: error.message 
     });
   }
-} 
+}; 

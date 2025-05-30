@@ -1,6 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
   // Headers CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST');
@@ -17,6 +15,9 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Dynamic import for Supabase
+    const { createClient } = await import('@supabase/supabase-js');
+    
     // Configuration Supabase
     const supabase = createClient(
       process.env.SUPABASE_URL,
@@ -64,7 +65,7 @@ export default async function handler(req, res) {
 
     if (insertError) {
       console.error('Erreur Supabase:', insertError);
-      return res.status(500).json({ error: 'Database error' });
+      return res.status(500).json({ error: 'Database error', details: insertError.message });
     }
 
     // Envoyer notification Pushover
@@ -120,4 +121,4 @@ export default async function handler(req, res) {
       details: error.message 
     });
   }
-} 
+}; 

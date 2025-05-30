@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Application web mobile-first pour partager sa météo intérieure quotidienne",
   "main": "index.html",
-  "type": "module",
   "engines": {
     "node": "18.x"
   },
