@@ -30,11 +30,11 @@ Rendez-vous sur votre Moodcast pour dire comment vous vous sentez. 💙`;
     // Envoyer notification aux deux appareils
     const notifications = [
       {
-        device: 'iphone',
+        device: 'iphone',    // Appareil de Clémence
         user: 'Clémence'
       },
       {
-        device: 'iphoneF', 
+        device: 'iphoneF',   // Appareil de Franklin
         user: 'Franklin'
       }
     ];

@@ -313,7 +313,6 @@
     // Envoyer notification Pushover
     async function sendPushoverNotification(targetUser, weather) {
       try {
-        const otherUser = targetUser === 'clemence' ? 'franklin' : 'clemence';
         const userKey = PUSHOVER_CONFIG.userKey;
         
         if (!PUSHOVER_CONFIG.apiToken || !userKey) {
@@ -324,8 +323,9 @@
         const userName = targetUser === 'clemence' ? 'Clémence' : 'Franklin';
         const message = `${userName} a une météo ${getWeatherEmoji(weather)} ${getWeatherName(weather)} aujourd'hui !`;
         
-        // Déterminer l'appareil selon l'utilisateur cible
-        const device = otherUser === 'clemence' ? 'iphone' : 'iphoneF';
+        // CORRECTION: Quand Clémence partage → envoyer à iphoneF (Franklin)
+        // Quand Franklin partage → envoyer à iphone (Clémence)
+        const device = targetUser === 'clemence' ? 'iphoneF' : 'iphone';
         
         const response = await fetch('https://api.pushover.net/1/messages.json', {
           method: 'POST',
@@ -392,7 +392,8 @@
         successEl.textContent = `Météo ${getWeatherEmoji(selectedWeather)} partagée avec succès !`;
         if (notificationSent) {
           const device = currentUser === 'clemence' ? 'iphoneF' : 'iphone';
-          successEl.textContent += ` 📱 Notification envoyée sur ${device} !`;
+          const targetName = currentUser === 'clemence' ? 'Franklin' : 'Clémence';
+          successEl.textContent += ` 📱 Notification envoyée à ${targetName} (${device}) !`;
         }
         successEl.classList.remove('hidden');
         
